@@ -1,131 +1,70 @@
-# Saanvi Sethi
-# 13656663
-
-# MULTILAYER PERCEPTRON MODELs
-
-# Imports
 import numpy as np
 
-def Parameters(): 
-    # Number of inputs
-    inputs = int(input("Number of input neurons: "))
-    # Hidden units
-    hidden_units = int(input("Number of hidden neurons: "))
-    # Output units
-    outputs = int(input("Number of output neurons: "))
-    # Epochs
-    epochs = int(input("Number of epochs: "))
-    # Learning rate
+def get_parameters(): 
+    inputs = int(input("Input neurons: "))
+    hidden_units = int(input("Hidden neurons: "))
+    outputs = int(input("Output neurons: "))
+    epochs = int(input("Epochs: "))
     learning_rate = float(input("Learning rate: "))
-    # Activation function
-    activation_func = lambda x: 1 / (1 + np.exp(-x))  # Sigmoid
-    activation_derivative = lambda x: x * (1 - x)    # Derivative of Sigmoid
-    
-    return inputs, hidden_units, outputs, epochs, activation_func, activation_derivative, learning_rate
+    activation = lambda x: 1 / (1 + np.exp(-x))
+    derivative = lambda x: x * (1 - x)
+    return inputs, hidden_units, outputs, epochs, activation, derivative, learning_rate
 
+def load_data():
+    choice = input("1. Manual entry\n2. Load from .txt file\nChoose: ")
+    if choice == '1':
+        data = eval(input("Enter data as [[x1,x2,...,y], [...]]: "))
+    else:
+        file_path = input("Path to .txt file: ")
+        with open(file_path, 'r') as file:
+            data = [list(map(float, line.strip().split())) for line in file if line.strip()]
+    return np.array(data)
 
-def Input():
-    """
-    Import training data or input own data.
-    """
-    data = np.array(eval(input("Enter training data as a list of lists (e.g., [[input1, input2, ..., target], [...]]): ")))
-    return data
+def show_structure(inputs, hidden_units, outputs):
+    print(f"Structure: {inputs} input, {hidden_units} hidden, {outputs} output")
 
+def initialize_weights(inputs, hidden_units, outputs):
+    w1 = np.random.rand(inputs, hidden_units) - 0.5
+    w2 = np.random.rand(hidden_units, outputs) - 0.5
+    return w1, w2
 
-def Structure(inputs, hidden_units, outputs):
-    """
-    Organize the structure of the MLP.
-    """
-    print(f"Structure: {inputs} input neurons, {hidden_units} hidden neurons, {outputs} output neurons")
-
-
-def Initialise(inputs, hidden_units, outputs):
-    """
-    Initialize weights between neurons for a fully connected graph with random weights.
-    """
-    weights_input_hidden = np.random.rand(inputs, hidden_units) - 0.5  # Input to hidden weights
-    weights_hidden_output = np.random.rand(hidden_units, outputs) - 0.5  # Hidden to output weights
-    return weights_input_hidden, weights_hidden_output
-
-
-def Introduced(data, epochs):
-    """
-    Shuffle the dataset and introduce one training sample at a time for the specified number of epochs.
-    """
-    for epoch in range(epochs):
-        np.random.shuffle(data)  # Random order
+def train_samples(data, epochs):
+    for _ in range(epochs):
+        np.random.shuffle(data)
         for sample in data:
             yield sample
 
+def forward_pass(x, w1, w2, activation):
+    h_input = np.dot(x, w1)
+    h_output = activation(h_input)
+    o_input = np.dot(h_output, w2)
+    o_output = activation(o_input)
+    return h_output, o_output
 
-def Output(inputs, weights_input_hidden, weights_hidden_output, activation_func):
-    """
-    Calculate the output for hidden units and overall network output.
-    """
-    # Calculate hidden layer input and output
-    hidden_input = np.dot(inputs, weights_input_hidden)  # Weighted sum for hidden layer
-    hidden_output = activation_func(hidden_input)        # Apply Sigmoid activation function
-    
-    # Calculate final output layer input and output
-    final_input = np.dot(hidden_output, weights_hidden_output)  # Weighted sum for output layer
-    final_output = activation_func(final_input)                 # Apply Sigmoid activation function
+def backpropagation(sample, w1, w2, activation, derivative, lr):
+    x = sample[:-1].reshape(1, -1)
+    y = np.array(sample[-1]).reshape(1, -1)
+    h_out, y_pred = forward_pass(x, w1, w2, activation)
+    error = y - y_pred
+    delta_out = error * derivative(y_pred)
+    delta_hidden = np.dot(delta_out, w2.T) * derivative(h_out)
+    w2 += lr * np.dot(h_out.T, delta_out)
+    w1 += lr * np.dot(x.T, delta_hidden)
+    return w1, w2
 
-    return hidden_output, final_output
-
-
-def WeightUpdate(sample, weights_input_hidden, weights_hidden_output, activation_func, activation_derivative, learning_rate):
-    """
-    Update weights based on the difference between predicted and target outputs.
-    """
-    # Separate input features and target output
-    input_sample = sample[:-1].reshape(1, -1)  # Input features
-    target_output = np.array(sample[-1]).reshape(1, -1)  # Target output
-
-    # Forward pass
-    hidden_output, predicted_output = Output(input_sample, weights_input_hidden, weights_hidden_output, activation_func)
-
-    # Backpropagation
-    # Update weights from hidden to output
-    output_error = target_output - predicted_output  # Error at output
-    delta_output = output_error * activation_derivative(predicted_output)
-    weights_hidden_output += learning_rate * np.dot(hidden_output.T, delta_output)  # Update weights hidden -> output
-
-    # Update weights from input to hidden
-    hidden_error = np.dot(delta_output, weights_hidden_output.T)  # Error propagated back to hidden layer
-    delta_hidden = hidden_error * activation_derivative(hidden_output)
-    weights_input_hidden += learning_rate * np.dot(input_sample.T, delta_hidden)  # Update weights input -> hidden
-
-    return weights_input_hidden, weights_hidden_output
-
-
-def Print(weights_input_hidden, weights_hidden_output):
-    """
-    Print final neuron weights after training.
-    """
-    print("\nFinal Weights:")
-    print("Weights between input and hidden layer:\n", weights_input_hidden)
-    print("Weights between hidden and output layer:\n", weights_hidden_output)
-
+def print_weights(w1, w2):
+    print("Weights Input-Hidden:\n", w1)
+    print("Weights Hidden-Output:\n", w2)
 
 def main():
-    """
-    Main function to execute the MLP model.
-    """
-    # Initialize parameters
-    inputs, hidden_units, outputs, epochs, activation_func, activation_derivative, learning_rate = Parameters()
-    data = Input()
-    Structure(inputs, hidden_units, outputs)
-    weights_input_hidden, weights_hidden_output = Initialise(inputs, hidden_units, outputs)
-
-    # Training process
-    for sample in Introduced(data, epochs):
-        weights_input_hidden, weights_hidden_output = WeightUpdate(
-            sample, weights_input_hidden, weights_hidden_output, activation_func, activation_derivative, learning_rate
-        )
-
-    # Print final weights
-    Print(weights_input_hidden, weights_hidden_output)
-
+    params = get_parameters()
+    data = load_data()
+    inputs, hidden_units, outputs, epochs, activation, derivative, lr = params
+    show_structure(inputs, hidden_units, outputs)
+    w1, w2 = initialize_weights(inputs, hidden_units, outputs)
+    for sample in train_samples(data, epochs):
+        w1, w2 = backpropagation(sample, w1, w2, activation, derivative, lr)
+    print_weights(w1, w2)
 
 if __name__ == "__main__":
     main()
