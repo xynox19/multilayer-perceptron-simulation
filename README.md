@@ -4,7 +4,7 @@ Author: Saanvi Sethi
 ID: 13656663
 
 ## Run:
-  python mlp v2.py
+  python 
   mlp v2.py is the main file
 ## Parameters:
   - Number of input, hidden, and output neurons
